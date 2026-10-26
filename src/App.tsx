@@ -1,57 +1,30 @@
-import './App.css'
-import { Pagination, Typography } from '@mui/material'
-import { CharacterFiltersForm } from './features/character/components/CharacterFilterForm';
-import { navigate, paths, useLocation } from './lib/router';
-import { parseFilters, serializeFilters, type CharacterFilters } from './features/character/schema';
-import { useCharacterList } from './features/character/query';
-import { CharacterGrid } from './features/character/components/CharacterGrid';
-import { CharacterDetail } from './features/character/components/CharacterDetail';
+import { Box, Container, Typography } from '@mui/material'
+import { useState } from 'react'
+import { CharacterDetail } from './features/character/components/CharacterDetail'
+import { CharacterList } from './features/character/components/CharacterList'
 
 function App() {
-  const { pathname, searchParams } = useLocation()
-  const filters = parseFilters(searchParams)
-  const { isPending, data } = useCharacterList(filters)
-  const detailMatch = pathname.match(/^\/characters\/(\d+)(\/edit)?$/)
-
-  const updateFilters = (patch: Partial<CharacterFilters>, replace = false) => {
-    navigate(paths.list(serializeFilters({ ...filters, ...patch })), { replace })
-  }
-
-  if (detailMatch) {
-    return (
-      <>
-        <h1>Personajes</h1>
-        <CharacterDetail id={Number(detailMatch[1])} editing={!!detailMatch[2]} />
-      </>
-    )
-  }
+  // Navegación mínima: un estado dice qué personaje está abierto.
+  // Trade-off: sin URL, el refresh y el botón atrás del navegador no la conservan.
+  // Para decir en voz alta: "en producción pondría el id y los filtros en la URL".
+  const [selectedId, setSelectedId] = useState<number | null>(null)
 
   return (
-    <>
-      <h1>Personajes</h1>
-      <CharacterFiltersForm
-        value={filters}
-        onChange={(next) => updateFilters({ ...next, page: 1 }, true)}
-      />
-        {isPending || !data ? (
-          <Typography variant="h6" component="p" sx={{ mt: 2 }}>
-            Cargando personajes...
-          </Typography>
-        ) : (
-         <CharacterGrid characters={data.results} />
-        )}
+    <Container sx={{ py: 4 }}>
+      <Typography variant="h4" component="h1" sx={{ mb: 2 }}>
+        Personajes
+      </Typography>
 
-      {data && data.results.length > 0 && (
-        <Pagination
-          sx={{ alignSelf: 'center' }}
-          count={data.info.pages}
-          page={filters.page}
-          onChange={(_event, page) => {
-            updateFilters({ page }, true);
-          }}
-        />
+      {/* La lista queda montada pero oculta: al volver del detalle conserva la búsqueda y la página. */}
+      <Box hidden={selectedId !== null}>
+        <CharacterList onSelect={setSelectedId} />
+      </Box>
+
+      {selectedId !== null && (
+        // key: si cambia el personaje, el detalle arranca de cero (por ejemplo, sale del modo edición).
+        <CharacterDetail key={selectedId} id={selectedId} onBack={() => setSelectedId(null)} />
       )}
-    </>
+    </Container>
   )
 }
 

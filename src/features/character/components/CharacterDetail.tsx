@@ -1,17 +1,24 @@
-import { Alert, Button, Chip, Stack, Typography } from "@mui/material";
-import { navigate, paths, RouterLink } from "../../../lib/router";
-import { useCharacterById, useEdits, useSaveEdit } from "../query";
-import { CharacterCard } from "./CharacterCard";
-import { CharacterForm } from "./CharacterForm";
+import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
+import { useState } from 'react'
+import { useCharacterById, useEdits, useSaveEdit } from '../query'
+import { applyEdit } from '../schema'
+import { CharacterCard } from './CharacterCard'
+import { CharacterForm } from './CharacterForm'
 
-export function CharacterDetail({ id, editing }: { id: number; editing: boolean }) {
+type Props = { id: number; onBack: () => void }
+
+export function CharacterDetail({ id, onBack }: Props) {
+  // Ver o editar: un estado local alcanza, no hace falta una ruta.
+  const [isEditing, setIsEditing] = useState(false)
   const { isPending, isError, data: character, error } = useCharacterById(id)
-  const { data: edits } = useEdits()
+  const { data: edits, isPending: editsPending } = useEdits()
   const save = useSaveEdit()
 
   const edit = edits?.find((e) => e.characterId === id)
 
-  if (isPending) {
+  // Esperamos también a las ediciones. Si no, al editar antes de que carguen,
+  // `edit` es undefined y se crea un duplicado (POST en vez de PUT).
+  if (isPending || editsPending) {
     return (
       <Typography variant="h6" component="p" sx={{ mt: 2 }}>
         Cargando personaje...
@@ -20,16 +27,16 @@ export function CharacterDetail({ id, editing }: { id: number; editing: boolean 
   }
   if (isError) return <Alert severity="error">{error.message}</Alert>
 
-  // La edición local pisa los datos de la API (menos el id, que en json-server es otro).
-  const shown = edit ? { ...character, ...edit, id: character.id } : character
+  // La misma función que usa la lista: la edición local pisa los datos de la API.
+  const shown = applyEdit(character, edit)
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 480, mx: 'auto' }}>
-      <Button component={RouterLink} href={paths.list()} sx={{ alignSelf: 'flex-start' }}>
+      <Button onClick={onBack} sx={{ alignSelf: 'flex-start' }}>
         ← Volver
       </Button>
 
-      {editing ? (
+      {isEditing ? (
         <>
           {save.isError && <Alert severity="error">{save.error.message}</Alert>}
           <CharacterForm
@@ -41,17 +48,23 @@ export function CharacterDetail({ id, editing }: { id: number; editing: boolean 
               gender: shown.gender,
             }}
             onSubmit={async (values) => {
-              await save.mutateAsync({ characterId: id, values, existingId: edit?.id })
-              navigate(paths.detail(id))
+              try {
+                await save.mutateAsync({ characterId: id, values, existingId: edit?.id })
+                setIsEditing(false)
+              } catch {
+                // No hacemos nada: el error ya se muestra arriba con save.error.
+                // Sin este catch, RHF vuelve a lanzar el error y queda como promesa sin manejar.
+              }
             }}
-            onCancel={() => navigate(paths.detail(id))}
+            onCancel={() => setIsEditing(false)}
           />
         </>
       ) : (
         <>
           <CharacterCard character={shown} />
           <Typography variant="body2" color="text.secondary">
-            {shown.gender}{shown.type ? ` - ${shown.type}` : ''}
+            {shown.gender}
+            {shown.type ? ` - ${shown.type}` : ''}
           </Typography>
           {edit && (
             <Chip
@@ -60,7 +73,7 @@ export function CharacterDetail({ id, editing }: { id: number; editing: boolean 
               sx={{ alignSelf: 'flex-start' }}
             />
           )}
-          <Button variant="contained" component={RouterLink} href={paths.edit(id)}>
+          <Button variant="contained" onClick={() => setIsEditing(true)}>
             Editar
           </Button>
         </>

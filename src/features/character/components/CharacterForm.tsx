@@ -1,8 +1,12 @@
-
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CHARACTER_GENDERS, CHARACTER_STATUSES, CharacterFormSchema, type CharacterFormValues } from "../schema";
-import { Button, MenuItem, Stack, TextField } from "@mui/material";
-import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Button, MenuItem, Stack, TextField } from '@mui/material'
+import { Controller, useForm } from 'react-hook-form'
+import {
+  CHARACTER_GENDERS,
+  CHARACTER_STATUSES,
+  CharacterFormSchema,
+  type CharacterFormValues,
+} from '../schema'
 
 type Props = {
   defaultValues: CharacterFormValues
@@ -10,9 +14,7 @@ type Props = {
   onCancel: () => void
 }
 
-
 export function CharacterForm({ defaultValues, onSubmit, onCancel }: Props) {
-
   const {
     control,
     handleSubmit,
